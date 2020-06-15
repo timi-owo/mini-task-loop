@@ -1,0 +1,30 @@
+{
+  "name": "mini-task-loop",
+  "version": "1.0.0",
+  "description": "a simple javascript (node.js) library for managing scheduled async tasks.",
+  "main": "module.js",
+  "scripts": {
+    "test": "node ./test.js"
+  },
+  "license": "MIT",
+  "author": {
+    "name": "timi",
+    "email": "781662377@qq.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/timi-owo/mini-task-loop.git"
+  },
+  "bugs": {
+    "url": "https://github.com/timi-owo/mini-task-loop/issues"
+  },
+  "homepage": "https://github.com/timi-owo/mini-task-loop",
+  "keywords": [
+    "task",
+    "loop",
+    "async",
+    "circle",
+    "scheduled",
+    "repeatedly"
+  ]
+}
