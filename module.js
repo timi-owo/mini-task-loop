@@ -1,4 +1,5 @@
 // Github: https://github.com/timi-owo/mini-task-loop
+// NPM JS: https://www.npmjs.com/package/mini-task-loop
 
 'use strict';
 
@@ -6,219 +7,169 @@
 
 class TaskLoop
 {
-	constructor(loop_polling_interval = 100)
+	constructor(strict_mode = false)
 	{
-		this.interval = loop_polling_interval;
-		this.tasks = new Map();
-		this.timer = null;
+		this.m_strictMode = strict_mode;
+		this.m_listTasks = new Map();
+		this.m_loopTimer = null;
 	}
 
-	_loopFrame(loop)
+	_loopFrame(parent)
 	{
-		for (let task of loop.tasks.values())
+		for (let task of parent.tasks.values())
 		{
-			if (task.m_paused) { continue; }
+			if (task.paused) { continue; }
 
-			task.m_counter += loop.interval;
-			if (task.m_counter >= task.m_anchor)
+			task.counter += parent.stepping;
+			if (task.counter >= task.anchor)
 			{
-				task.m_counter = 0;
-				process.nextTick(task.m_callback, task.m_name);
+				task.counter = 0;
+				process.nextTick(task.callback, task.id);
 			}
 		}
 	}
 
-	/*
-	# Start the task loop.
-	@ interval: polling interval of task loop (optional, default: 100ms).
-	*/
-	runTaskLoop(interval = undefined)
+	runTaskLoop(loop_polling_interval = 100)
 	{
-		if (interval != undefined) { this.interval = interval; }
-		this.timer = setInterval(this._loopFrame, this.interval, this);
+		let parent =
+		{
+			tasks: this.m_listTasks,
+			stepping: loop_polling_interval
+		};
+
+		this.m_loopTimer = setInterval(this._loopFrame, loop_polling_interval, parent);
 		return this;
 	}
 
-	/*
-	# Stop the task loop.
-	@ remove_all_tasks: (optional, default: false).
-	*/
-	stopTaskLoop(remove_all_tasks = false)
+	stopTaskLoop(remove_all_task = false)
 	{
-		if (this.timer != null)
+		if (this.m_loopTimer != null)
 		{
-			clearInterval(this.timer);
-			this.timer = null;
+			clearInterval(this.m_loopTimer);
+			this.m_loopTimer = null;
 		}
-		if (remove_all_tasks) { this.removeTask(); }
+		if (remove_all_task) { this.removeTask(); }
 
 		return this;
 	}
 
-	/*
-	# Add a scheduled task into task loop.
-	@ name: unique task name.
-	@ interval: how many milliseconds should trigger callback of this task repeatedly.
-	@ callback: a callback with a optional param 'name' to handle task logic.
-	@ init_paused: specify whether or not pause this task when it's first time add to the loop (optional, default: false).
-	*/
-	addTask(name, interval, callback, init_paused = false)
+	addTask(id, interval, callback, init_paused = false)
 	{
-		if (name != '*')
+		let task =
 		{
-			let task =
+			id: id,
+			anchor: interval,
+			callback: callback,
+
+			counter: 0,
+			paused: init_paused
+		};
+
+		this.m_listTasks.set(id, task);
+		return this;
+	}
+
+	removeTask(id = undefined)
+	{
+		if (id != undefined)
+		{
+			let result = this.m_listTasks.delete(id);
+			if (!result && this.m_strictMode)
 			{
-				m_name: name,
-				m_anchor: interval,
-				m_callback: callback,
-
-				m_counter: 0,
-				m_paused: init_paused
-			};
-			this.tasks.set(name, task);
-			return this;
+				let target = (typeof id == 'object' ? '\n\n' + JSON.stringify(id) + '\n' : id);
+				throw new Error('Task not found : ' + target);
+			}
 		}
-		else { throw new Error('name can not be \'*\''); }
-	}
-
-	/*
-	# Remove task from the loop.
-	@ task_name: name of the task, or '*' indicate all the tasks (default '*').
-	*/
-	removeTask(task_name = '*')
-	{
-		if (task_name != '*')
-		{
-			this.tasks.delete(task_name);
-		}
-		else { this.tasks.clear(); }
+		else { this.m_listTasks.clear(); }
 
 		return this;
 	}
 
-	/*
-	# Pause a running task.
-	@ task_name: name of the task, or '*' indicate all the tasks (default '*').
-	@ reset_counter: specify whether or not reset task timer (optional, default: false).
-	*/
-	pauseTask(task_name = '*', reset_counter = false)
+	pauseTask(id = undefined, reset_counter = false)
 	{
-		if (task_name != '*')
+		if (id != undefined)
 		{
-			let task = this.tasks.get(task_name);
+			let task = this.m_listTasks.get(id);
 			if (task != undefined)
 			{
-				task.m_paused = true;
-				task.m_counter = (reset_counter ? 0 : task.m_counter);
+				task.paused = true;
+				task.counter = (reset_counter ? 0 : task.counter);
+			}
+			else if (this.m_strictMode)
+			{
+				let target = (typeof id == 'object' ? '\n\n' + JSON.stringify(id) + '\n' : id);
+				throw new Error('Task not found : ' + target);
 			}
 		}
 		else
 		{
-			for (let task of this.tasks.values())
+			for (let task of this.m_listTasks.values())
 			{
-				task.m_paused = true;
-				task.m_counter = (reset_counter ? 0 : task.m_counter);
+				task.paused = true;
+				task.counter = (reset_counter ? 0 : task.counter);
 			}
 		}
 		return this;
 	}
 
-	/*
-	# Resume a paused task.
-	@ task_name: name of the task, or '*' indicate all the tasks (default '*').
-	@ reset_counter: specify whether or not reset task timer (optional, default: false).
-	*/
-	resumeTask(task_name = '*', reset_counter = false)
+	resumeTask(id = undefined, reset_counter = false)
 	{
-		if (task_name != '*')
+		if (id != undefined)
 		{
-			let task = this.tasks.get(task_name);
+			let task = this.m_listTasks.get(id);
 			if (task != undefined)
 			{
-				task.m_paused = false;
-				task.m_counter = (reset_counter ? 0 : task.m_counter);
+				task.paused = false;
+				task.counter = (reset_counter ? 0 : task.counter);
+			}
+			else if (this.m_strictMode)
+			{
+				let target = (typeof id == 'object' ? '\n\n' + JSON.stringify(id) + '\n' : id);
+				throw new Error('Task not found : ' + target);
 			}
 		}
 		else
 		{
-			for (let task of this.tasks.values())
+			for (let task of this.m_listTasks.values())
 			{
-				task.m_paused = false;
-				task.m_counter = (reset_counter ? 0 : task.m_counter);
+				task.paused = false;
+				task.counter = (reset_counter ? 0 : task.counter);
 			}
 		}
 		return this;
 	}
 
-	/*
-	# Query a task status.
-	@ task_name: name of the task, or '*' indicate all the tasks (default '*').
-	@ return: an object that includes single task status, or an array of the object that includes all tasks status if 'task_name' is '*'.
-	  if task name not matched in the loop, undefined is returned.
-	*/
-	statusTask(task_name = '*')
+	queryTask(id = undefined)
 	{
-		if (task_name != '*')
-		{
-			let task = this.tasks.get(task_name);
-			if (task != undefined)
-			{
-				let status =
-				{
-					name: task.m_name,
-					anchor: task.m_anchor,
-					counter: task.m_counter,
-					is_paused: task.m_paused
-				};
-				return status;
-			}
-			else { return undefined; }
-		}
-		else
-		{
-			let all = [];
-			for (let task of this.tasks.values())
-			{
-				let status =
-				{
-					name: task.m_name,
-					anchor: task.m_anchor,
-					counter: task.m_counter,
-					is_paused: task.m_paused
-				};
-				all.push(status);
-			}
-			return all;
-		}
+		return (id != undefined ? this.m_listTasks.get(id) : this.m_listTasks.values());
 	}
 
-	/*
-	# Trigger a task callback once immediately.
-	@ task_name: name of the task, or '*' indicate all the tasks (default '*').
-	@ reset_counter: specify whether or not reset task timer (optional, default: true).
-	@ skip_paused: specify whether or not ignore task when it's paused (optional, default: true).
-	*/
-	executeOnce(task_name = '*', reset_counter = true, skip_paused = true)
+	executeOnce(id = undefined, reset_counter = false, skip_paused = true)
 	{
-		if (task_name != '*')
+		if (id != undefined)
 		{
-			let task = this.tasks.get(task_name);
+			let task = this.m_listTasks.get(id);
 			if (task != undefined)
 			{
-				if (skip_paused && task.m_paused) { return this; }
+				if (task.paused && skip_paused) { return this; }
 
-				process.nextTick(task.m_callback, task.m_name);
-				task.m_counter = (reset_counter ? 0 : task.m_counter);
+				task.counter = (reset_counter ? 0 : task.counter);
+				process.nextTick(task.callback, task.id);
+			}
+			else if (this.m_strictMode)
+			{
+				let target = (typeof id == 'object' ? '\n\n' + JSON.stringify(id) + '\n' : id);
+				throw new Error('Task not found : ' + target);
 			}
 		}
 		else
 		{
-			for (let task of this.tasks.values())
+			for (let task of this.m_listTasks.values())
 			{
-				if (skip_paused && task.m_paused) { continue; }
+				if (task.paused && skip_paused) { continue; }
 
-				process.nextTick(task.m_callback, task.m_name);
-				task.m_counter = (reset_counter ? 0 : task.m_counter);
+				task.counter = (reset_counter ? 0 : task.counter);
+				process.nextTick(task.callback, task.id);
 			}
 		}
 		return this;

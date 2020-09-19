@@ -1,43 +1,62 @@
 'use strict';
 
 const TaskLoop = require('./module');
-let taskloop = new TaskLoop().runTaskLoop();
 
-let mark = [0, 0];
+// create our task loop with strict mode
+let taskloop = new TaskLoop(true).runTaskLoop();
 
-taskloop.addTask('mytask', 1000, (name) =>
+function test1()
 {
-	mark[0] ++;
-	console.log(name, mark[0]);
+	let counter = 0;
 
-	if (mark[0] == 5)
+	// add first task run every 1000 milliseconds
+	taskloop.addTask('first', 1000, (task_id) =>
 	{
-		taskloop.pauseTask(name);
-		setTimeout(() => { taskloop.resumeTask(name); }, 3000);
-		console.log(name + ' pausing for 3 seconds...');
-		console.log(taskloop.statusTask(name));
-	}
-	if (mark[0] == 7)
-	{
-		taskloop.removeTask(name);
-		console.log(name + ' exiting from loop.');
-		console.log(taskloop.statusTask());
-	}
-});
+		counter ++;
+		console.log(task_id + ' : ' + counter);
 
-taskloop.addTask('longtime', 5000, (name) =>
+		// pause this task for 3 seconds when arriving 5 runs
+		if (counter == 5)
+		{
+			taskloop.pauseTask(task_id);
+			setTimeout(() => { taskloop.resumeTask(task_id); }, 3000);
+			console.log(task_id + ' : waiting 3 seconds');
+		}
+
+		// remove this task after 10 runs
+		if (counter >= 10)
+		{
+			taskloop.removeTask(task_id);
+			console.log(task_id + ' : done');
+		}
+
+	}).executeOnce(); // make this task execute immediately after it's add
+}
+
+function test2()
 {
-	mark[1] ++;
-	console.log(name, mark[1]);
+	// using an object as the task id, run every 5 seconds.
+	let obj = { id: 'second', foo: 'bar', counter: 0 };
 
-	if (mark[1] == 4)
+	taskloop.addTask(obj, 5000, (task) =>
 	{
-		taskloop.stopTaskLoop(true);
-		console.log('remove all tasks and stop task loop.');
-	}
+		task.counter ++;
+		console.log(task.id + ' : ' + task.counter);
 
-}).executeOnce('longtime'); //Trigger this task once immediately
+		// stop the task loop after 4 runs
+		if (task.counter >= 4)
+		{
+			// remove all task at this time
+			taskloop.stopTaskLoop(true);
+			console.log(task.id + ' : stop and exit');
+		}
+	});
+}
 
-console.log(taskloop.statusTask());
+test1();
+test2();
+
+// show all tasks we just added
+console.log(taskloop.queryTask());
 
 //...
