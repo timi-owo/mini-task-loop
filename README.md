@@ -1,116 +1,140 @@
-# mini-task-loop
-a simple javascript (node.js) library for managing scheduled async tasks.
+# 📦 **mini-task-loop**
+📌a simple javascript (node.js) library for managing scheduled async tasks for a loop.
 
-# Example
+## Install
+
+```sh
+$ npm install mini-task-loop
+```
+
+## Example
+
 ```js
 const TaskLoop = require('mini-task-loop');
-let taskloop = new TaskLoop().runTaskLoop();
 
-let mark = [0, 0];
+// create our task loop with strict mode
+let taskloop = new TaskLoop(true).runTaskLoop();
 
-taskloop.addTask('mytask', 1000, (name) =>
+function test1()
 {
-	mark[0] ++;
-	console.log(name, mark[0]);
+	let counter = 0;
 
-	if (mark[0] == 5)
+	// add first task run every 1000 milliseconds
+	taskloop.addTask('first', 1000, (task_id) =>
 	{
-		taskloop.pauseTask(name);
-		setTimeout(() => { taskloop.resumeTask(name); }, 3000);
-		console.log(name + ' pausing for 3 seconds...');
-		console.log(taskloop.statusTask(name));
-	}
-	if (mark[0] == 7)
+		counter ++;
+		console.log(task_id + ' : ' + counter);
+
+		// pause this task for 3 seconds when arriving 5 runs
+		if (counter == 5)
+		{
+			taskloop.pauseTask(task_id);
+			setTimeout(() => { taskloop.resumeTask(task_id); }, 3000);
+			console.log(task_id + ' : waiting 3 seconds');
+		}
+
+		// remove this task after 10 runs
+		if (counter >= 10)
+		{
+			taskloop.removeTask(task_id);
+			console.log(task_id + ' : done');
+		}
+
+	}).executeOnce(); // make this task execute immediately after it's add
+}
+
+function test2()
+{
+	// using an object as the task id, run every 5 seconds.
+	let obj = { id: 'second', foo: 'bar', counter: 0 };
+
+	taskloop.addTask(obj, 5000, (task) =>
 	{
-		taskloop.removeTask(name);
-		console.log(name + ' exiting from loop.');
-		console.log(taskloop.statusTask());
-	}
+		task.counter ++;
+		console.log(task.id + ' : ' + task.counter);
+
+		// stop the task loop after 4 runs
+		if (task.counter >= 4)
+		{
+			// remove all task at this time
+			taskloop.stopTaskLoop(true);
+			console.log(task.id + ' : stop and exit');
+		}
+	});
+}
+
+test1();
+test2();
+
+// show all tasks we just added
+console.log(taskloop.queryTask());
+```
+
+## API
+
+### **TaskLoop([strict_mode])**
+
+*Constructor function of `TaskLoop` class.*<br>
+*An optional boolean to set `strict mode` of this object.*<br>
+*When `strict mode` is enabled, any operation of task will throw a runtime error if task id not matching in the loop.*
+
+### **runTaskLoop([loop_polling_interval])**
+
+*Start running the task loop.*
+- @number `loop_polling_interval` : an integer to specify how many milliseconds between each process frame of task loop. default `100`.
+  - set this value based on average interval of tasks, smaller value means lower process latency of task scheduling.
+
+### **stopTaskLoop([remove_all_task])**
+
+*Stop running the task loop, existing tasks will be retained.*
+- @boolean `remove_all_task` : specify whether to remove all tasks in the task loop. default `false`.
+
+### **addTask(id, interval, callback[, init_paused])**
+
+*Add a new task to the task loop.*
+- @any `id` : an unique value or object used to identify the task.
+- @number `interval` : an integer to specify how many milliseconds between each execution of the task.
+- @function `callback` : called when task interval arrive in each times, `id` will passed to this function as param.
+- @boolean `init_paused` : specify whether to pause this task when it added. default `false`.
+
+```js
+addTask('foo', 1000, (task_id) =>
+{
+	// value of 'task_id' is referenced to 'foo'
 });
+```
 
-taskloop.addTask('longtime', 5000, (name) =>
-{
-	mark[1] ++;
-	console.log(name, mark[1]);
+### **removeTask([id])**
 
-	if (mark[1] == 4)
-	{
-		taskloop.stopTaskLoop(true);
-		console.log('remove all tasks and stop task loop.');
-	}
+*Remove task from the task loop.*
+- @any `id` : if not specified, all tasks will be removed.
 
-}).executeOnce('longtime'); //Trigger this task once immediately
+### **pauseTask([id, reset_counter])**
 
-console.log(taskloop.statusTask());
-```
-# Methods
-```js
-/*
-# Start the task loop.
-@ interval: polling interval of task loop (optional, default: 100ms).
-*/
-runTaskLoop(interval = undefined)
-```
-```js
-/*
-# Stop the task loop.
-@ remove_all_tasks: (optional, default: false).
-*/
-stopTaskLoop(remove_all_tasks = false)
-```
-```js
-/*
-# Add a scheduled task into task loop.
-@ name: unique task name.
-@ interval: how many milliseconds should trigger callback of this task repeatedly.
-@ callback: a callback with a optional param 'name' to handle task logic.
-@ init_paused: specify whether or not pause this task when it's first time add to the loop (optional, default:false).
-*/
-addTask(name, interval, callback, init_paused = false)
-```
-```js
-/*
-# Remove task from the loop.
-@ task_name: name of the task, or '*' indicate all the tasks (default '*').
-*/
-removeTask(task_name = '*')
-```
-```js
-/*
-# Pause a running task.
-@ task_name: name of the task, or '*' indicate all the tasks (default '*').
-@ reset_counter: specify whether or not reset task timer (optional, default: false).
-*/
-pauseTask(task_name = '*', reset_counter = false)
-```
-```js
-/*
-# Resume a paused task.
-@ task_name: name of the task, or '*' indicate all the tasks (default '*').
-@ reset_counter: specify whether or not reset task timer (optional, default: false).
-*/
-resumeTask(task_name = '*', reset_counter = false)
-```
-```js
-/*
-# Query a task status.
-@ task_name: name of the task, or '*' indicate all the tasks (default '*').
-@ return: an object that includes single task status, or an array of the object that includes all tasks status if 'task_name' is '*'.
-  if task name not matched in the loop, undefined is returned.
-*/
-statusTask(task_name = '*')
-```
-```js
-/*
-# Trigger a task callback once immediately.
-@ task_name: name of the task, or '*' indicate all the tasks (default '*').
-@ reset_counter: specify whether or not reset task timer (optional, default: true).
-@ skip_paused: specify whether or not ignore task when it's paused (optional, default: true).
-*/
-executeOnce(task_name = '*', reset_counter = true, skip_paused = true)
-```
-# Note
+*Pause a running task.*
+- @any `id` : if not specified, all tasks will be paused.
+- @boolean `reset_counter` : specify whether to reset task counter to zero. default `false`.
+
+### **resumeTask([id, reset_counter])**
+
+*Resume a paused task.*
+- @any `id` : if not specified, all paused tasks will be resume.
+- @boolean `reset_counter` : specify whether to reset task counter to zero. default `false`.
+
+### **queryTask([id])**
+
+*Query task status. If task id not found, `undefined` will be returned.*
+- @any `id` : if not specified, a map iterator object that includes all task will be returned.
+
+### **executeOnce([id, reset_counter, skip_paused])**
+
+*Execute the task callback function.*
+- @any `id` : if not specified, all tasks callback will be executed.
+- @boolean `reset_counter` : specify whether to reset task counter to zero. default `false`.
+- @boolean `skip_paused` : specify whether to skip task execution if task is paused. default `true`.
+
+## Note
+
 - The complete methods and description can be found in `module.js`
-- See `test.js` and run test using `npm test` command.
-# License
-- The MIT License (MIT)
+- More example see `test.js` and run test using `npm test` command.
+
