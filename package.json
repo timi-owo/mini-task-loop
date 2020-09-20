@@ -1,7 +1,7 @@
 {
   "name": "mini-task-loop",
-  "version": "1.0.0",
-  "description": "a simple javascript (node.js) library for managing scheduled async tasks.",
+  "version": "2.0.0",
+  "description": "a simple javascript (node.js) library for managing scheduled async tasks for a loop.",
   "main": "module.js",
   "scripts": {
     "test": "node ./test.js"
@@ -23,6 +23,7 @@
     "task",
     "loop",
     "async",
+    "queue",
     "circle",
     "scheduled",
     "repeatedly"
