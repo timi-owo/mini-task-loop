@@ -1,5 +1,5 @@
 # 📦 **mini-task-loop**
-📌a simple javascript (node.js) library for managing scheduled async tasks for a loop.
+*📌 a simple javascript (node.js) library for managing scheduled async tasks for a loop.*
 
 ## Install
 
